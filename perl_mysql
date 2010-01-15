@@ -1,0 +1,104 @@
+#!/usr/bin/perl -w
+#
+# INN perl_auth script
+# Authentication against MySQL Database
+#
+# Written by Thomas Hochstein <thh@inter.net>
+# based on a script written by Sven Weise (sven@futzelnet.de).
+# Covered under the same license as INN in general.
+#
+# user          = Username
+# password      = Passwort
+# active        = User active/inactive? (for temp. suspension)
+#
+### database structure
+# CREATE TABLE IF NOT EXISTS `users` (
+#   `userid` int(11) NOT NULL auto_increment,
+#   `user` varchar(16) collate latin1_bin NOT NULL default '',
+#   `password` varchar(16) collate latin1_bin NOT NULL default '',
+#   `active` tinyint(1) NOT NULL default '1',
+#   `username` varchar(60) collate latin1_bin default NULL,
+#   `usermail` varchar(60) collate latin1_bin default NULL,
+#   `domain` varchar(40) collate latin1_bin default '<EDITME>',
+#   `llo` date default NULL,
+#   PRIMARY KEY  (`userid`),
+#   UNIQUE KEY `user` (`user`)
+# );
+####################################################################################################################################
+
+
+
+# use strict;
+use DBI;
+use Time::localtime;
+
+### DB Vars - EDIT ME!
+$conf{'dbdriver'} = "mysql";
+$conf{'dbhost'}   = "localhost";
+$conf{'database'} = "";
+$conf{'dbuser'}   = "";
+$conf{'dbpw'}     = "";
+$conf{'dbtable'}  = "";
+$conf{'actcheck'} = 1;
+
+sub auth_init() {
+ #D open LOG, '>/usr/lib/news/bin/auth/passwd/test.log';
+ 
+};
+
+sub authenticate() {
+ # $attributes{hostname}  hostname (or the IP address if it doesn't resolve) of the client machine
+ # $attributes{ipaddress} IP address (as a string)
+ # $attributes{port}      client port (as an integer)
+ # $attributes{interface} hostname of the interface the client connected on
+ # $attributes{intipaddr} IP address (as a string) of the interface the client connected on
+ # $attributes{intport}   port (as an integer) on the interface the client connected on
+ # $attributes{username}  username
+ # $attributes{password}  password
+
+ ### DB init
+ my $dbs = sprintf('DBI:%s:database=%s;host=%s',$conf{'dbdriver'},$conf{'database'},$conf{'dbhost'});
+ my $dbhandle = DBI->connect($dbs, $conf{'dbuser'}, $conf{'dbpw'}, { PrintError => 1 });
+
+ ### Query database and disconnect.
+
+ my(@result);
+
+ # quote SQL
+ my $sql_user = $dbhandle->quote($attributes{username});
+ my $sql_pass = $dbhandle->quote($attributes{password});
+
+ my $query = sprintf("SELECT domain FROM %s.%s WHERE user = %s AND password = %s",$conf{'database'},$conf{'dbtable'},$sql_user,$sql_pass);
+ if ($conf{'actcheck'}) {
+   $query .= ' AND active = 1';
+ };
+ my $dbquery = $dbhandle->prepare($query);
+ if ($dbquery->execute()) {
+  @result = $dbquery->fetchrow_array;
+  $dbquery->finish;
+ 
+  if (@result) {
+   # log timestamp
+   my $tm = localtime;
+   my $today = sprintf('%04d-%02d-%02d', $tm->year+1900, ($tm->mon)+1, $tm->mday);
+   $query = sprintf("UPDATE %s.%s SET llo = '%s' WHERE user = %s",$conf{'database'},$conf{'dbtable'},$today,$sql_user);
+   $dbquery = $dbhandle->prepare($query);
+   $dbquery->execute();
+   $dbquery->finish;
+  };
+ };
+ $dbhandle->disconnect;
+ ###
+
+ ### check password and respond appropriate
+ if (@result) {
+  my $user = $attributes{username} . '@' . $result[0];
+  return (281, 'Authentication successful: '.$user, $user);
+ } else {
+  return (481, 'Authentication failure');
+ }
+
+ # code execution should never reach this point
+ return (481, 'Authentication failure');
+};
+### EOF ###
