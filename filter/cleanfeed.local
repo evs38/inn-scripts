@@ -1,0 +1,102 @@
+# vim: set syntax=perl ts=4 ai si:
+
+use MIME::Base64();
+use Digest::SHA1();
+use Digest::HMAC_SHA1();
+
+#
+# local_filter_cancel
+#
+sub local_filter_cancel {
+   unless($hdr{Control} =~ m/^cancel\s+(<[^>]+>)/i) {
+      return "Cancel with broken target ID";
+   }
+   return verify_cancel(\%hdr, $1, 'Cancel');
+}
+
+sub local_filter_after_emp {
+   if (exists( $hdr{'Supersedes'} )) {
+      #return verify_cancel(\%hdr, $hdr{'Supersedes'}, 'Supersedes');
+      # verify_cancel is called, but not returned, so the
+      # posting is unconditionally accepted
+      # verify_cancel calls INN:cancel() if verification suceeds
+      verify_cancel(\%hdr, $hdr{'Supersedes'}, 'Supersedes');
+   }
+
+   return undef;
+}
+
+sub verify_cancel($$$) {
+   my $r_hdr = shift || die;
+   my $target = shift;
+   my $descr = shift;
+
+   my $headers = INN::head($target) || return "$descr of non-existing ID $target";
+
+   my %headers;
+   for my $line(split(/\s*\n/, $headers))    {
+      if ($line =~ m/^([[:alnum:]-]+):\s+(.*)/) {
+         $headers{$1} = $2;
+      }
+   }
+
+   my $lock = $headers{'Cancel-Lock'};
+   if (defined($lock)) {
+      my $key = $r_hdr->{'Cancel-Key'} || return "$descr of $target without Cancel-Key";
+      #return verify_cancel_key($key, $lock, ' target=' . $target);
+      return verify_cancel_key($key, $lock, $target);
+   } else {
+    # -thh
+    # no cancel-lock: go ahead and cancel anyway!
+    INN::cancel($target);
+   }
+
+   return undef;
+}
+
+sub verify_cancel_key($$$) {
+   my $cancel_key = shift;
+   my $cancel_lock = shift;
+   my $msg = shift;
+
+   $msg = '' unless(defined($msg));
+   # -thh
+   my $target = $msg;
+   $msg = ' target=' . $msg;
+
+   my %lock;
+   for my $l(split(/\s+/, $cancel_lock))   {
+      next unless($l =~ m/^(sha1|md5):(\S+)/);
+      $lock{$2} = $1;
+   }
+
+   for my $k(split(/\s+/, $cancel_key))    {
+      unless($k =~ m/^(sha1|md5):(\S+)/) { 
+        INN::syslog('notice', "Invalid Cancel-Key syntax '$k'.$msg");
+        next;
+      }
+
+      my $key;
+      if ($1 eq 'sha1') {
+         $key = Digest::SHA1::sha1($2); }
+      elsif ($1 eq 'md5') {
+         $key = Digest::MD5::md5($2);
+      }
+      $key = MIME::Base64::encode_base64($key, '');
+
+      if (exists($lock{$key})) { 
+         # INN::syslog('notice', "Valid Cancel-Key $key found.$msg");
+         # -thh
+         # article is canceled now
+         INN::cancel($target) if ($target);
+         return undef;
+      }
+   }
+
+   INN::syslog('notice',
+      "No Cancel-Key[$cancel_key] matches Cancel-Lock[$cancel_lock]$msg"
+   );
+   return "No Cancel-Key matches Cancel-Lock.$msg";
+}
+
+1;
