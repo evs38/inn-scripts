@@ -1,0 +1,24 @@
+               Bits and pieces of INN config
+               =============================
+
+Up to now this is just some hodgepodge of config snippets;
+when (if!) I'll manage to spare some time, I'll try to
+structure it a bit ...
+
+------------------------------------------------------------
+
+auth/perl-_mysql
+  Perl script to authenticatie against a MySQL database
+  --> /usr/lib/news/bin/auth/passwd/perl_mysql
+
+------------------------------------------------------------
+
+filter/filter_nnrpd.pl
+  Posting filter to add Cancel-Lock and Cancel-Key
+  --> /etc/news/filter/filter_nnrpd.pl
+
+filter/cleanfeed.local
+  Posting filter to add Cancel-Lock and Cancel-Key
+  --> /etc/news/filter/cleanfeed/etc/cleanfeed.local
+
+------------------------------------------------------------
