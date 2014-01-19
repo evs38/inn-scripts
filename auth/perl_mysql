@@ -56,6 +56,11 @@ sub authenticate() {
  # $attributes{username}  username
  # $attributes{password}  password
 
+ # return if username or password not set
+ if (!defined($attributes{username}) or !defined($attributes{password})) {
+  return (481, 'Authentication failure');
+ }
+
  ### DB init
  my $dbs = sprintf('DBI:%s:database=%s;host=%s',$conf{'dbdriver'},$conf{'database'},$conf{'dbhost'});
  my $dbhandle = DBI->connect($dbs, $conf{'dbuser'}, $conf{'dbpw'}, { PrintError => 1 });
