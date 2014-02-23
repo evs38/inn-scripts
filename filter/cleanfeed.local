@@ -2,7 +2,6 @@
 
 use MIME::Base64();
 use Digest::SHA1();
-use Digest::HMAC_SHA1();
 
 #
 # local_filter_cancel
