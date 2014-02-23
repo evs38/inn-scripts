@@ -2,7 +2,7 @@
 # Do any initialization steps.
 #
 use Digest::MD5  qw(md5_base64);
-use Digest::SHA1();
+use Digest::SHA();
 use Digest::HMAC_SHA1();
 use MIME::Base64();
 
@@ -25,7 +25,7 @@ sub filter_post {
    elsif (exists( $hdr{"Supersedes"} )) {
       my $key = calc_cancel_key($user, $hdr{"Supersedes"});
       add_cancel_item(\%hdr, 'Cancel-Key', $key);
-   }
+   }                     
      
    return $rval;
 }
@@ -48,6 +48,6 @@ sub calc_cancel_key($$) {
 sub add_cancel_lock($$) {
    my ( $r_hdr, $user ) = @_;
    my $key = calc_cancel_key($user, $r_hdr->{'Message-ID'});
-   my $lock = MIME::Base64::encode(Digest::SHA1::sha1($key), '');
+   my $lock = MIME::Base64::encode(Digest::SHA::sha1($key), '');
    add_cancel_item($r_hdr, 'Cancel-Lock', $lock);
 }

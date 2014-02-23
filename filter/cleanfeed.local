@@ -1,7 +1,7 @@
 # vim: set syntax=perl ts=4 ai si:
 
 use MIME::Base64();
-use Digest::SHA1();
+use Digest::SHA();
 
 #
 # local_filter_cancel
@@ -77,7 +77,7 @@ sub verify_cancel_key($$$) {
 
       my $key;
       if ($1 eq 'sha1') {
-         $key = Digest::SHA1::sha1($2); }
+         $key = Digest::SHA::sha1($2); }
       elsif ($1 eq 'md5') {
          $key = Digest::MD5::md5($2);
       }
